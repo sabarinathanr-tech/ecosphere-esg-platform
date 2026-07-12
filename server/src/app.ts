@@ -43,12 +43,14 @@ app.use(cors({
 }));
 
 // ─── GENERAL MIDDLEWARE ───────────────────────────────────────────────────────
-app.use(compression());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Only compress responses > 1kb — avoids wasting CPU on tiny payloads
+app.use(compression({ threshold: 1024, level: 6 }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
+// Minimal log format in dev — 'dev' adds color parsing overhead
 if (env.isDevelopment) {
-  app.use(morgan('dev'));
+  app.use(morgan('tiny'));
 } else {
   app.use(morgan('combined', {
     stream: { write: (message: string) => logger.info(message.trim()) },

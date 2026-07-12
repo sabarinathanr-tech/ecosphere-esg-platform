@@ -24,6 +24,7 @@ router.use(authenticate);
 router.get('/challenges', getChallenges);
 router.get('/challenges/:id', getChallengeById);
 router.post('/challenges', authorize('ADMIN', 'MANAGER'), validateBody(createChallengeSchema), createChallenge);
+router.post('/challenges/:id/join', createChallengeParticipation);
 router.put('/challenges/:id', authorize('ADMIN', 'MANAGER'), validateBody(updateChallengeSchema), updateChallenge);
 router.delete('/challenges/:id', authorize('ADMIN'), deleteChallenge);
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({
@@ -59,6 +60,7 @@ export default function RootLayout({
         }}
       >
         <QueryProvider>
+          <AuthProvider>
           {children}
           <Toaster
             theme="dark"
@@ -72,6 +74,7 @@ export default function RootLayout({
               },
             }}
           />
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

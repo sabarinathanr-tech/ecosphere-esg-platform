@@ -1,0 +1,726 @@
+// EcoSphere ESG Platform - Prisma Schema
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  MANAGER
+  EMPLOYEE
+  VIEWER
+}
+
+enum EmissionCategory {
+  STATIONARY
+  MOBILE
+  ELECTRICITY
+  FUGITIVE
+  TRAVEL
+  WASTE
+  OTHER
+}
+
+enum Scope {
+  SCOPE_1
+  SCOPE_2
+  SCOPE_3
+}
+
+enum TransactionStatus {
+  DRAFT
+  SUBMITTED
+  VERIFIED
+  REJECTED
+}
+
+enum ProductStatus {
+  CERTIFIED
+  UNDER_REVIEW
+  PENDING
+  DRAFT
+}
+
+enum GoalCategory {
+  CARBON
+  WATER
+  WASTE
+  ENERGY
+  BIODIVERSITY
+}
+
+enum GoalStatus {
+  ON_TRACK
+  AT_RISK
+  BEHIND
+  ACHIEVED
+}
+
+enum CSRCategory {
+  EDUCATION
+  ENVIRONMENT
+  HEALTHCARE
+  COMMUNITY
+  SKILLS
+}
+
+enum CSRStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum ActivityType {
+  CSR
+  TRAINING
+  CHALLENGE
+  AUDIT
+}
+
+enum ParticipationStatus {
+  ATTENDED
+  ABSENT
+  PENDING
+  EXCUSED
+}
+
+enum TrainingCategory {
+  ESG_AWARENESS
+  COMPLIANCE
+  SAFETY
+  LEADERSHIP
+  TECHNICAL
+  SUSTAINABILITY
+}
+
+enum TrainingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PolicyCategory {
+  ENVIRONMENTAL
+  SOCIAL
+  GOVERNANCE
+  ETHICS
+  SAFETY
+  DATA_PRIVACY
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  UNDER_REVIEW
+  ARCHIVED
+}
+
+enum AcknowledgementMethod {
+  ELECTRONIC
+  PHYSICAL
+}
+
+enum AcknowledgementStatus {
+  ACKNOWLEDGED
+  PENDING
+  OVERDUE
+}
+
+enum AuditType {
+  INTERNAL
+  EXTERNAL
+  REGULATORY
+  THIRD_PARTY
+}
+
+enum AuditStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum ComplianceSource {
+  AUDIT
+  SELF_ASSESSMENT
+  REGULATORY
+  EMPLOYEE_REPORT
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ComplianceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  ESCALATED
+}
+
+enum ChallengeCategory {
+  CARBON
+  WATER
+  WASTE
+  ENERGY
+  DIVERSITY
+  SAFETY
+}
+
+enum ChallengeStatus {
+  DRAFT
+  ACTIVE
+  UNDER_REVIEW
+  COMPLETED
+  ARCHIVED
+}
+
+enum ChallengeParticipationStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+  PENDING_VERIFICATION
+}
+
+enum BadgeCategory {
+  ENVIRONMENT
+  SOCIAL
+  GOVERNANCE
+  PARTICIPATION
+  ACHIEVEMENT
+}
+
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum RewardCategory {
+  VOUCHER
+  EXPERIENCE
+  MERCHANDISE
+  RECOGNITION
+  TIME_OFF
+}
+
+enum RewardStatus {
+  AVAILABLE
+  OUT_OF_STOCK
+  COMING_SOON
+}
+
+enum RedemptionStatus {
+  PENDING
+  APPROVED
+  FULFILLED
+  REJECTED
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Module {
+  ENVIRONMENT
+  SOCIAL
+  GOVERNANCE
+  GAMIFICATION
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// ============================================================
+// AUTH / USERS
+// ============================================================
+
+model User {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  password   String
+  role       Role     @default(EMPLOYEE)
+  department String?
+  employeeId String?  @unique
+  level      Int      @default(1)
+  totalXp    Int      @default(0)
+  streak     Int      @default(0)
+  avatarUrl  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  refreshTokens          RefreshToken[]
+  carbonTransactions     CarbonTransaction[]     @relation("CreatedBy")
+  verifiedTransactions   CarbonTransaction[]     @relation("VerifiedBy")
+  sustainabilityGoals    SustainabilityGoal[]    @relation("GoalOwner")
+  participations         EmployeeParticipation[]
+  policyAcknowledgements PolicyAcknowledgement[]
+  challengesCreated      Challenge[]             @relation("ChallengeCreatedBy")
+  challengeParticipations ChallengeParticipation[]
+  userBadges             UserBadge[]
+  rewardRedemptions      RewardRedemption[]
+  approvedRedemptions    RewardRedemption[]      @relation("ApprovedBy")
+  notifications          Notification[]
+  complianceIssuesRaised ComplianceIssue[]       @relation("RaisedBy")
+  complianceIssuesAssigned ComplianceIssue[]     @relation("AssignedTo")
+  verifiedParticipations EmployeeParticipation[] @relation("VerifiedParticipation")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// ENVIRONMENT
+// ============================================================
+
+model EmissionFactor {
+  id        String           @id @default(cuid())
+  name      String
+  category  EmissionCategory
+  scope     Scope
+  unit      String
+  factor    Float
+  source    String
+  year      Int
+  isActive  Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  carbonTransactions CarbonTransaction[]
+
+  @@map("emission_factors")
+}
+
+model CarbonTransaction {
+  id             String            @id @default(cuid())
+  date           DateTime
+  departmentId   String?
+  activity       String
+  categoryId     String?
+  quantity       Float
+  unit           String
+  emissionFactor Float
+  totalEmissions Float
+  scope          Scope
+  notes          String?
+  verifiedById   String?
+  verifiedAt     DateTime?
+  status         TransactionStatus @default(DRAFT)
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  createdBy  User            @relation("CreatedBy", fields: [createdById], references: [id])
+  verifiedBy User?           @relation("VerifiedBy", fields: [verifiedById], references: [id])
+  department Department?     @relation(fields: [departmentId], references: [id])
+  factor     EmissionFactor? @relation(fields: [categoryId], references: [id])
+
+  @@map("carbon_transactions")
+}
+
+model ProductESGProfile {
+  id               String        @id @default(cuid())
+  productName      String
+  sku              String        @unique
+  category         String
+  carbonFootprint  Float
+  recyclability    Float
+  renewableEnergy  Float
+  waterUsage       Float
+  overallScore     Float
+  certifications   String[]
+  status           ProductStatus @default(DRAFT)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("product_esg_profiles")
+}
+
+model SustainabilityGoal {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  category     GoalCategory
+  targetValue  Float
+  currentValue Float        @default(0)
+  unit         String
+  targetYear   Int
+  progress     Float        @default(0)
+  status       GoalStatus   @default(ON_TRACK)
+  ownerId      String?
+  departmentId String?
+  sdgAlignment Int[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  owner      User?       @relation("GoalOwner", fields: [ownerId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("sustainability_goals")
+}
+
+// ============================================================
+// SOCIAL
+// ============================================================
+
+model CSRActivity {
+  id                  String    @id @default(cuid())
+  title               String
+  description         String?
+  category            CSRCategory
+  startDate           DateTime
+  endDate             DateTime?
+  targetParticipants  Int
+  actualParticipants  Int       @default(0)
+  budget              Float
+  spent               Float     @default(0)
+  location            String?
+  organizer           String?
+  status              CSRStatus @default(PLANNING)
+  impactScore         Float?
+  sdgGoals            Int[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  participations EmployeeParticipation[]
+
+  @@map("csr_activities")
+}
+
+model EmployeeParticipation {
+  id           String              @id @default(cuid())
+  userId       String
+  activityId   String?
+  activityType ActivityType
+  date         DateTime
+  hours        Float
+  xpEarned     Int                 @default(0)
+  status       ParticipationStatus @default(PENDING)
+  verifiedById String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  user       User         @relation(fields: [userId], references: [id])
+  activity   CSRActivity? @relation(fields: [activityId], references: [id])
+  verifiedBy User?        @relation("VerifiedParticipation", fields: [verifiedById], references: [id])
+
+  @@map("employee_participations")
+}
+
+model TrainingProgram {
+  id          String          @id @default(cuid())
+  title       String
+  category    TrainingCategory
+  instructor  String
+  startDate   DateTime
+  endDate     DateTime?
+  duration    Int             // in hours
+  enrolled    Int             @default(0)
+  completed   Int             @default(0)
+  mandatory   Boolean         @default(false)
+  status      TrainingStatus  @default(SCHEDULED)
+  rating      Float?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("training_programs")
+}
+
+// ============================================================
+// GOVERNANCE
+// ============================================================
+
+model Policy {
+  id                   String       @id @default(cuid())
+  title                String
+  category             PolicyCategory
+  version              String       @default("1.0")
+  owner                String?
+  departmentId         String?
+  effectiveDate        DateTime
+  reviewDate           DateTime
+  acknowledgementRate  Float        @default(0)
+  totalAcknowledged    Int          @default(0)
+  totalStaff           Int          @default(0)
+  status               PolicyStatus @default(DRAFT)
+  mandatory            Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  department      Department?             @relation(fields: [departmentId], references: [id])
+  acknowledgements PolicyAcknowledgement[]
+
+  @@map("policies")
+}
+
+model PolicyAcknowledgement {
+  id             String                @id @default(cuid())
+  policyId       String
+  userId         String
+  acknowledgedAt DateTime?
+  method         AcknowledgementMethod @default(ELECTRONIC)
+  status         AcknowledgementStatus @default(PENDING)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([policyId, userId])
+  @@map("policy_acknowledgements")
+}
+
+model Audit {
+  id               String      @id @default(cuid())
+  title            String
+  type             AuditType
+  standard         String?
+  auditor          String?
+  departmentId     String?
+  scheduledDate    DateTime
+  completedDate    DateTime?
+  status           AuditStatus @default(SCHEDULED)
+  findings         Int         @default(0)
+  criticalFindings Int         @default(0)
+  score            Float?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("audits")
+}
+
+model ComplianceIssue {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  source       ComplianceSource
+  severity     Severity
+  category     String?
+  raisedById   String?
+  assignedToId String?
+  departmentId String?
+  raisedDate   DateTime         @default(now())
+  dueDate      DateTime?
+  status       ComplianceStatus @default(OPEN)
+  actionPlan   String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  raisedBy   User?       @relation("RaisedBy", fields: [raisedById], references: [id])
+  assignedTo User?       @relation("AssignedTo", fields: [assignedToId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("compliance_issues")
+}
+
+// ============================================================
+// GAMIFICATION
+// ============================================================
+
+model Challenge {
+  id              String            @id @default(cuid())
+  title           String
+  description     String?
+  category        ChallengeCategory
+  startDate       DateTime
+  endDate         DateTime
+  targetValue     Float
+  currentValue    Float             @default(0)
+  unit            String
+  xpReward        Int               @default(0)
+  badgeReward     String?
+  maxParticipants Int?
+  status          ChallengeStatus   @default(DRAFT)
+  createdById     String?
+  departmentIds   String[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  createdBy      User?                    @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
+  participations ChallengeParticipation[]
+
+  @@map("challenges")
+}
+
+model ChallengeParticipation {
+  id             String                       @id @default(cuid())
+  challengeId    String
+  userId         String
+  joinedDate     DateTime                     @default(now())
+  completionDate DateTime?
+  progress       Float                        @default(0)
+  xpEarned       Int                          @default(0)
+  status         ChallengeParticipationStatus @default(ACTIVE)
+  rank           Int?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@unique([challengeId, userId])
+  @@map("challenge_participations")
+}
+
+model Badge {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  description  String?
+  icon         String?
+  category     BadgeCategory
+  xpRequired   Int           @default(0)
+  criteria     String?
+  totalAwarded Int           @default(0)
+  rarity       Rarity        @default(COMMON)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedDate DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Reward {
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  category       RewardCategory
+  xpCost         Int
+  monetaryValue  Float         @default(0)
+  stock          Int           @default(-1) // -1 = unlimited
+  totalRedeemed  Int           @default(0)
+  validUntil     DateTime?
+  status         RewardStatus  @default(AVAILABLE)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  redemptions RewardRedemption[]
+
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  id             String           @id @default(cuid())
+  rewardId       String
+  userId         String
+  redeemedDate   DateTime         @default(now())
+  xpSpent        Int
+  monetaryValue  Float
+  status         RedemptionStatus @default(PENDING)
+  approvedById   String?
+  fulfilledDate  DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  reward     Reward @relation(fields: [rewardId], references: [id])
+  user       User   @relation(fields: [userId], references: [id])
+  approvedBy User?  @relation("ApprovedBy", fields: [approvedById], references: [id])
+
+  @@map("reward_redemptions")
+}
+
+// ============================================================
+// ORGANIZATION
+// ============================================================
+
+model Department {
+  id                String           @id @default(cuid())
+  name              String
+  code              String           @unique
+  head              String?
+  location          String?
+  employeeCount     Int              @default(0)
+  esgScore          Float            @default(0)
+  carbonEmissions   Float            @default(0)
+  participationRate Float            @default(0)
+  status            DepartmentStatus @default(ACTIVE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  carbonTransactions  CarbonTransaction[]
+  sustainabilityGoals SustainabilityGoal[]
+  policies            Policy[]
+  audits              Audit[]
+  complianceIssues    ComplianceIssue[]
+
+  @@map("departments")
+}
+
+model Category {
+  id          String         @id @default(cuid())
+  name        String
+  module      Module
+  color       String?
+  description String?
+  status      CategoryStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@map("categories")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  module      String?
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  actionLabel String?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
